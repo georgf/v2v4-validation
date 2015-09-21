@@ -765,14 +765,14 @@ try {
   text += "<h2>additional details</h2>";
   text += "<div>This contains more detailed data dumps that can help us understand what is going on in individual histories.</div>";
 
-  text += "<h3>v4 extract</h3>";
-  v4Extract.reverse();
-  text += renderV4Extract(v4Extract);
-  text += "<h3>v2 extract</h3>";
-  text += renderV2Extract(v2Extract);
-
   // Enable this for some additional data dumping.
   if (true) {
+    text += "<h3>v4 extract</h3>";
+    v4Extract.reverse();
+    text += renderV4Extract(v4Extract);
+    text += "<h3>v2 extract</h3>";
+    text += renderV2Extract(v2Extract);
+
     v2v4Matchup.sessions = mapToObject(v2v4Matchup.sessions);
 
     text += "<h3>dumps</h3>" + "<pre>" +
