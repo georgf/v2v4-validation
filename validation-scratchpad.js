@@ -12,13 +12,14 @@
  */
 
 (function() {
-
+  
 Cu.import("resource://gre/modules/TelemetryArchive.jsm");
 Cu.import("resource://gre/modules/TelemetryController.jsm");
 Cu.import("resource://gre/modules/TelemetryUtils.jsm");
 
 const BUILDID_CUTOFF = 20150722000000;
 const MS_IN_A_DAY = 24 * 60 * 60 * 1000;
+const SHOW_EXTENDED = false;
 
 function getMainWindow() {
   return window.QueryInterface(Ci.nsIInterfaceRequestor)
@@ -28,19 +29,19 @@ function getMainWindow() {
                .QueryInterface(Ci.nsIInterfaceRequestor)
                .getInterface(Ci.nsIDOMWindow);
 }
-
+  
 function showTextInNewTab(str) {
   let win = getMainWindow();
   let tab = win.gBrowser.addTab("data:text/plain," + encodeURIComponent(str));
   win.gBrowser.selectedTab = tab;
 }
-
+  
 function showHtmlInNewTab(str) {
   let win = getMainWindow();
   let tab = win.gBrowser.addTab("data:text/html," + encodeURIComponent(str));
   win.gBrowser.selectedTab = tab;
 }
-
+  
 function mapToObject(m) {
   let o = {};
   for (let [k,v] of m) {
@@ -48,9 +49,9 @@ function mapToObject(m) {
   }
   return o;
 }
-
+  
 function lastElement(array) {
-  return array[array.length - 1];
+  return array[array.length - 1];  
 }
 
 function v2DefaultBrowserValueToV4(defaultValue) {
@@ -71,11 +72,11 @@ function* extractDailyV2Measurement(dailyMap, measurement, name) {
     dailyMap.get(day)[name] = mapToObject(value);
   }
 }
-
+  
 function* getRawV2Data() {
   const reporter = Cc["@mozilla.org/datareporting/service;1"].getService().wrappedJSObject.healthReporter;
   yield reporter.onInit();
-
+  
   const payload = yield reporter.collectAndObtainJSONPayload(true);
   return payload;
 }
@@ -97,7 +98,7 @@ function getV2Extract(rawV2Data) {
       abortedTotalTimes: [],
     };
     let dayHasData = false;
-
+    
     const counts = data["org.mozilla.searches.counts"];
     if (counts) {
       for (let k of Object.keys(counts)) {
@@ -107,13 +108,13 @@ function getV2Extract(rawV2Data) {
         }
       }
     }
-
+    
     const appinfo = data["org.mozilla.appInfo.appinfo"];
     if (appinfo) {
       extract.isDefaultBrowser = appinfo.isDefaultBrowser;
       dayHasData = true;
     }
-
+    
     const previous = data["org.mozilla.appSessions.previous"];
     if (previous) {
       const sum = (array) => array.reduce((a,b) => a+b, 0);
@@ -129,7 +130,7 @@ function getV2Extract(rawV2Data) {
       dailyMap.set(day + "T00:00:00Z", extract);
     }
   }
-
+  
   const twoDig = (n) => ((n > 9) ? "" : "0") + n;
   const dateStr = `${now.getUTCFullYear()}-${twoDig(now.getUTCMonth()+1)}-${twoDig(now.getUTCDate())}T00:00:00Z`;
   if (!dailyMap.has(dateStr)) {
@@ -143,15 +144,15 @@ function getV2Extract(rawV2Data) {
     });
   }
   const extract = dailyMap.get(dateStr);
-
+  
   const current = payload.data.last["org.mozilla.appSessions.current"];
   extract.totalTime += current.totalTime;
   extract.cleanTotalTime += current.totalTime;
   extract.cleanTotalTimes.push(current.totalTime);
-
+  
   return dailyMap;
 }
-
+  
 function accumulateV2(dailyMap, cutoffTime) {
   let r = {
     searchCounts: {},
@@ -171,7 +172,7 @@ function accumulateV2(dailyMap, cutoffTime) {
     r.cleanTotalTime += v.cleanTotalTime;
     r.abortedTotalTime += v.abortedTotalTime;
   }
-
+  
   return r;
 }
 
@@ -206,15 +207,15 @@ function extractV4DataFromPing(p, isFromOldBuild = false) {
   for (let k of Object.keys(h)) {
     data.searchCounts[k] = h[k].sum;
   }
-
+  
   return data;
 }
-
+  
 function* getV4Extract() {
   // Retrieve a list of the archived main pings.
   let pings = yield TelemetryArchive.promiseArchivedPingList();
   pings = pings.filter(p => p.type == "main");
-
+  
   // Load and extract data from the archived pings.
   let data = [];
   let foundNewerBuild = false;
@@ -227,7 +228,7 @@ function* getV4Extract() {
       // data.push({id: archived.id, timestampCreated: archived.timestampCreated, fileNotFound: true, isBroken: true});
       continue;
     }
-
+  
     // Skip all leading pings from build ids that are too old.
     const isFromOldBuild = (parseInt(p.application.buildId, 10) < BUILDID_CUTOFF);
     if (!foundNewerBuild && isFromOldBuild) {
@@ -235,14 +236,14 @@ function* getV4Extract() {
     }
     foundNewerBuild = true;
 
-    data.push(extractV4DataFromPing(p, isFromOldBuild));
+    data.push(extractV4DataFromPing(p, isFromOldBuild));  
   }
-
+  
   // Push the current data on the list, otherwise we are missing
   // the measurements from the last subsession on.
   let current = TelemetryController.getCurrentPingData(true);
   data.push(extractV4DataFromPing(current));
-
+  
   let previous = null;
   for (let current of data) {
     const finalReasons = new Set(["shutdown", "aborted-session", "gather-subsession-payload"]);
@@ -258,7 +259,7 @@ function* getV4Extract() {
       c.brokenSessionChain = p.isFinalFragment && (c.previousSessionId != p.sessionId);
       c.brokenSubsessionChain = (c.previousSubsessionId != p.subsessionId);
       c.brokenProfileSubsessionCounter = (c.profileSubsessionCounter != (p.profileSubsessionCounter + 1));
-      c.brokenSubsessionCounter = (p.isFinalFragment ?
+      c.brokenSubsessionCounter = (p.isFinalFragment ? 
                                           (c.subsessionCounter != 1) :
                                           (c.subsessionCounter != (p.subsessionCounter + 1)));
       c.isBroken = !c.isFromOldBuild && !p.isFromOldBuild &&
@@ -271,12 +272,12 @@ function* getV4Extract() {
 
     previous = current;
   }
-
+  
   data[data.length-1].isLastFragment = true;
-
+  
   return data;
 }
-
+  
 function accumulateV4(extracts, cutoffTime) {
   let r = {
     searchCounts: {},
@@ -295,7 +296,7 @@ function accumulateV4(extracts, cutoffTime) {
     for (let k of Object.keys(v.searchCounts)) {
       r.searchCounts[k] = (r.searchCounts[k] || 0) + v.searchCounts[k];
     }
-
+    
     r.subsessionLength += v.subsessionLength;
     if (v.isLastFragment) {
       r.totalTime += v.totalTime;
@@ -309,7 +310,7 @@ function accumulateV4(extracts, cutoffTime) {
       r.sessionLength += v.sessionLength || 0;
     }
   }
-
+  
   return r;
 }
 
@@ -323,19 +324,19 @@ function validateV2V4BrowserDefault(v2, v4, cutoffTime) {
     if (v2Time < cutoffTime) {
       continue;
     }
-
+    
     // Skip this entry if v2 didn't have any useful data.
     if (v2Data.isDefaultBrowser == null) {
       continue;
     }
-
+    
     // Check for matching default entries in v4 from the same day +/- one day.
     // v2 & v4 don't match exactly, so we want to need to look
     // for matches a bit more loosely.
     // Also, v2 records this daily, v4 with every ping and hence potentially multiple
     // times a day. The best criteria here thus is "for each v2 entry, check that v4
     // also saw that value in a certain timeframe".
-
+    
     v2Data.brokenDefaultBrowser = !v4.some((ping) => {
       const v4Time = (new Date(ping.creationDate)).getTime();
       if ((v4Time < (v2Time - MS_IN_A_DAY)) || (v4Time > (v2Time + MS_IN_A_DAY))) {
@@ -344,13 +345,13 @@ function validateV2V4BrowserDefault(v2, v4, cutoffTime) {
 
       return (ping.isDefaultBrowser === v2DefaultBrowserValueToV4(v2Data.isDefaultBrowser));
     });
-
+    
     sawBreakage = sawBreakage || v2Data.brokenDefaultBrowser;
   }
-
+  
   return sawBreakage;
 }
-
+  
 function getV2V4Matchup(v2Extract, v4Extract, cutoffTime) {
   // Lets preprocess the v4 data into a session-oriented format first.
   let v4Data = new Map();
@@ -361,7 +362,7 @@ function getV2V4Matchup(v2Extract, v4Extract, cutoffTime) {
       // We only insert the "current" session data on todays date, everything else
       // gets attributed to the session start date.
       startTimeUtc = (new Date(p.creationDate)).getTime() - (p.totalTime * 1000);
-
+      
     }
     const startDate = new Date(startTimeUtc);
     const twoDig = (n) => ((n > 9) ? "" : "0") + n;
@@ -390,10 +391,10 @@ function getV2V4Matchup(v2Extract, v4Extract, cutoffTime) {
 
     v4Data.get(startDayUtc).push(entry);
   }
-
+  
   // Filter out the v2 data points that have session starts.
   const v2Days = [for (v of v2Extract) if (v[1].totalTime > 0) v[0]];
-
+  
   // Get the set of days we have either v2 or v4 sessions for.
   const days = [...(new Set([...v4Data.keys(), ...v2Days])).keys()];
   days.sort();
@@ -413,7 +414,7 @@ function getV2V4Matchup(v2Extract, v4Extract, cutoffTime) {
     let v2 = v2Extract.get(day);
     let v4 = v4Data.get(day) || [];
     let sessions = [];
-
+    
     // Add v2 sessions and try to match them with the v4 data.
 
     if (v2) {
@@ -424,7 +425,7 @@ function getV2V4Matchup(v2Extract, v4Extract, cutoffTime) {
         // totalTime matches for different collection times etc.
         const D = 5;
         let match = v4.find((p) => (p.aborted == t.aborted) &&
-                                   (p.aborted ||
+                                   (p.aborted || 
                                      (p.totalTime >= (t.time - D)) &&
                                      (p.totalTime <= (t.time + D))) &&
                                    !matchedSessionIds.has(p.sessionId));
@@ -446,9 +447,9 @@ function getV2V4Matchup(v2Extract, v4Extract, cutoffTime) {
         });
       }
     }
-
+    
     // Add unmatched v4 sessions.
-
+    
     const unmatchedV4Sessions = v4.filter(p => !matchedSessionIds.has(p.sessionId));
     missingInV2Count += unmatchedV4Sessions.length;
     for (let p of unmatchedV4Sessions) {
@@ -463,12 +464,12 @@ function getV2V4Matchup(v2Extract, v4Extract, cutoffTime) {
         subsessionLength: p.subsessionLength,
       });
     }
-
+    
     // Add the session matchups to the daily map.
 
     data.set(day, sessions);
   }
-
+  
   const values = [].concat(...[...data.values()]);
   return {
     missingInV2Count: missingInV2Count,
@@ -540,7 +541,7 @@ function renderV4Extract(extract) {
     text += "</tr>";
   }
   text += "</table>";
-
+           
   return text;
 }
 
@@ -567,23 +568,28 @@ function renderV2V4Comparison(countsMap, v2, v4, cutoffTime, defaults) {
   const delta = (a,b) => Math.abs(a - b);
   const noInfinity = (number) => (number == Infinity) ? "-" : number;
   let text = "";
-
+  
   // Some basic information.
+  text += "<h3>general information</h3>";
   text += "<table>";
   text += `<tr><td>cutoff date for inspections</td>` +
           `<td>${new Date(cutoffTime)} ${(cutoffTime == 0) ? "<i>(all v2 & v4 data is recent)</i>" : ""}</td></tr>`;
-
+  
   const currentBroken = (defaults.current.v2 != defaults.current.v4);
   text += `<tr><td ${currentBroken ? ' class="broken"' : ''}>current browser defaults</td>` +
           `<td>v2: ${defaults.current.v2}, v4: ${defaults.current.v4}</td></tr>`;
-
+  
   text += `<tr><td ${defaults.historicallyBroken ? ' class="broken"' : ''}>` +
           `History of browser defaults broken</td><td>${defaults.historicallyBroken}` +
           `</td></tr>`;
-
-    text += "</div>";
-
+  
+  text += "</table>";
+  
   // Build comparison table.
+  text += "<h3>search counts</h3>";
+  text += "<div>Search counts should usually line up 1:1 on fresh profiles. " +
+          "However, on older profiles we can't exactly match when FHR & v4 measurements happened, " +
+          "so minor discrepancies are expected there (up to a day of measurements).</div>";
   text += "<table>";
 
   text += "<tr><th>what</th><th>v2</th><th>v4</th><th>v4 in % of v2</tr>";
@@ -603,26 +609,40 @@ function renderV2V4Comparison(countsMap, v2, v4, cutoffTime, defaults) {
 function renderV2V4Matchup(matchup) {
   const delta = (a,b) => Math.abs(a - b);
   const noInfinity = (number) => (number == Infinity) ? "-" : number;
+  
+  let text = "<h3>session time matchups</h3>";
 
-  let text = "<table>" +
-             `<tr><td>v2 sessions not matched in v4</td><td>${matchup.missingInV4Count}</td></tr>` +
-             `<tr><td>v4 sessions not matched in v2</td><td>${matchup.missingInV2Count}</td></tr>` +
-             "</table>";
-
+  text += "<div>The following table shows comparisons between times measured in FHR and Telemetry (all values in seconds):" +
+          "<ul>" +
+          "<li>matchedCleanTotalTimes - The sessions without crashes we can match from both systems. They should be very close to each other</li>" +
+          "<li>matchedAbortedTotalTimes - The crashed sessions we can match from both systems. The way FHR stores session times for detection seems to make it undercount them heavily, so Telemetry is expected to have a much higher value.</li>" +
+          "<li>matchedTotalTimes - The total time for sessions matched from both systems. This is expected to mismatch if there were any crashes, due to the aborted session time discrepancies.</li>" +
+          "<li>totalTimes - The total time for sessions in either system. This can mismatch due to the above caveats as well as sessions that are missing from either system.</li>" +
+          "<li>cleanTotalTimes - Same as above, except only for sessions without crashes.</li>" +
+          "<li>abortedTotalTimes - Same as above, except only for sessions with crashes.</li>" +
+          "</ul>" +
+          "</div>";
+  
   text += "<table>" +
           `<tr><th>what</th><th>v2</th><th>v4</th><th>v4 in % of v2</th></tr>`;
-  fields = [
+  let fields = [
     ["matchedCleanTotalTimes", "matchedCleanTotalTimes", 0.01],
-    ["matchedTotalTimes", "matchedTotalTimes", 1.0],
     ["matchedAbortedTotalTimes", "matchedAbortedTotalTimes", 5.0],
-    ["matchedTotalTimes", "matchedCleanSessionLength", 5.0],
-    ["matchedTotalTimes", "matchedCleanSubsessionLength", 5.0],
+    ["matchedTotalTimes", "matchedTotalTimes", 1.0],
     ["totalTimes", "totalTimes", 1.0],
     ["cleanTotalTimes", "cleanTotalTimes", 1.0],
     ["abortedTotalTimes", "abortedTotalTimes", 5.0],
-    ["totalTimes", "sessionLength", 5.0],
-    ["totalTimes", "subsessionLength", 5.0],
   ];
+  
+  if (SHOW_EXTENDED) {
+    fields = fields.concat([
+      ["matchedTotalTimes", "matchedCleanSessionLength", 5.0],
+      ["matchedTotalTimes", "matchedCleanSubsessionLength", 5.0],
+      ["totalTimes", "sessionLength", 5.0],
+      ["totalTimes", "subsessionLength", 5.0],
+    ]);
+  }
+
   for (let [fieldV2, fieldV4, tolerance] of fields) {
     const valV2 = matchup[fieldV2][0];
     const valV4 = matchup[fieldV4][1];
@@ -637,11 +657,29 @@ function renderV2V4Matchup(matchup) {
   }
   text += "</table>";
 
+  text += "<h3>individual session matchup</h3>";
+
+  text += "<div>Depending on bugs in either system, we might have sessions missing in Telemetry that are recorded " +
+          "in FHR or vice versa.</div>";
+  text += "<table>" +
+          `<tr><td>v2 sessions not matched in v4</td><td>${matchup.missingInV4Count}</td></tr>` +
+          `<tr><td>v4 sessions not matched in v2</td><td>${matchup.missingInV2Count}</td></tr>` +
+          "</table>";
+
+  text += "<div>The following table tries to match up individual sessions recorded in FHR " +
+          "and those in Telemetry with each other.<br>" +
+          "Entries that are missing in either are highlighted.</div>";
+
   text += "<table>";
-  text += `<tr><th>day/field</th><th>v2 totalTime</th><th>v4 totalTime</th><th>aborted</th><th>v4 session id</th><th>sessionLength</th><th>subsessionLength</th></tr>`;
+  text += "<tr><th>day/field</th><th>v2 totalTime</th><th>v4 totalTime</th><th>aborted</th><th>v4 session id</th>";
+  if (SHOW_EXTENDED) {
+    text += "<th>sessionLength</th><th>subsessionLength</th>";
+  }
+  text += "</tr>";
 
   for (let [day, values] of matchup.sessions) {
-    text += `<tr class='grey'><td>${day}</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`;
+    text += `<tr class='grey'><td>${day}</td><td></td><td></td><td></td><td></td>` +
+            (SHOW_EXTENDED ? "<td></td><td></td>" : "") + "</tr>";
     for (let v of values) {
       text += `<tr ${v.broken ? 'class="broken"' : ''}>` +
               `<td>${v.startTime > 0 ? new Date(v.startTime) : 'no v4 start time'}</td>` +
@@ -649,14 +687,13 @@ function renderV2V4Matchup(matchup) {
               `<td>${v.totalTimeV4 !== null ? v.totalTimeV4 : '-'}</td>` +
               `<td>${v.aborted}</td>` +
               `<td>${v.sessionId || '-'}</td>` +
-              `<td>${v.sessionLength}</td>` +
-              `<td>${v.subsessionLength}</td>` +
+              (SHOW_EXTENDED ? `<td>${v.sessionLength}</td><td>${v.subsessionLength}</td>` : "") +
               `</tr>`;
     }
   }
-
+  
   text += "</table>";
-
+  
   return text;
 }
 
@@ -667,14 +704,14 @@ try {
     alert("No v4 data to compare yet.");
     return;
   }
-
+  
   const rawV2Data = yield* getRawV2Data();
   let v2Extract = getV2Extract(rawV2Data);
   if (v2Extract.size == 0) {
     alert("No v2 data to compare yet.");
     return;
   }
-
+  
   // Build a v2/v4 comparison for the best matching historic data we can find.
   // If all v2 & v4 data is relatively recent, we use all available local data from both.
   // If the v4 data has older pings or v2s or v4s history starts more than 1 day apart,
@@ -687,7 +724,7 @@ try {
   if (Math.abs(oldestV2 - oldestV4) <= (MS_IN_A_DAY)) {
     cutoffTime = 0;
   }
-
+  
   const v2Accumulated = accumulateV2(v2Extract, cutoffTime);
   const v4Accumulated = accumulateV4(v4Extract, cutoffTime);
   const searchKeys = new Set([...Object.keys(v2Accumulated.searchCounts), ...Object.keys(v4Accumulated.searchCounts)]);
@@ -695,7 +732,7 @@ try {
     "search: " + k ,
     [(v2Accumulated.searchCounts[k] || 0), (v4Accumulated.searchCounts[k] || 0)]
   ]]);
-
+  
   // Extract the current default browser.
   const lastV4 = lastElement(v4Extract);
   const lastV2 = v2Extract.values().next().value;
@@ -706,11 +743,11 @@ try {
     },
     historicallyBroken: validateV2V4BrowserDefault(v2Extract, v4Extract, cutoffTime),
   };
-
+  
   // v2/v4 session matchup.
   const v2v4Matchup = getV2V4Matchup(v2Extract, v4Extract, cutoffTime);
-
-  // Show the v2 & v4 data and data comparisons in a new tab.
+  
+  // Styling.
   let text = "<style type='text/css'>" +
              "table { border-collapse: collapse; margin-bottom: 10px; }" +
              "th, td { border: solid 1px; }" +
@@ -718,20 +755,27 @@ try {
              "div { margin-bottom: 10px; }" +
              ".grey { background-color: #E3E3E3; }" +
              "</style>";
+  
+  // Show the v2 & v4 data and data comparisons.
   text += "<h2 name='v2v4matchup'>v2/v4 matchup</h2>";
+  text += "<div><i>Note:</i> v2 refers to the current FHR system, v4 to the improved Telemetry system.</div>"
   text += renderV2V4Comparison(counts, v2Accumulated, v4Accumulated, cutoffTime, defaults);
   text += renderV2V4Matchup(v2v4Matchup);
-  text += "<h2 name='v4'>v4 extract</h2>";
+  
+  text += "<h2>additional details</h2>";
+  text += "<div>This contains more detailed data dumps that can help us understand what is going on in individual histories.</div>";
+  
+  text += "<h3>v4 extract</h3>";
   v4Extract.reverse();
   text += renderV4Extract(v4Extract);
-  text += "<h2 name='v2'>v2 extract</h2>";
+  text += "<h3>v2 extract</h3>";
   text += renderV2Extract(v2Extract);
-
+  
   // Enable this for some additional data dumping.
   if (true) {
     v2v4Matchup.sessions = mapToObject(v2v4Matchup.sessions);
 
-    text += "<h2>dumps</h2>" + "<pre>" +
+    text += "<h3>dumps</h3>" + "<pre>" +
       "Accumulated v2 data:\n" +
       JSON.stringify(v2Accumulated, null, 2) +
       "\n\n" +
@@ -749,14 +793,14 @@ try {
       "v2/v4 matchup data:\n" +
       JSON.stringify(v2v4Matchup, null, 2) +
       "</pre>";
-
-    text += "<h2>Raw v2 data</h2>" +
+    
+    text += "<h3>Raw v2 data</h3>" +
             "<pre>" + JSON.stringify(rawV2Data, null, 2) + "</pre>";
-
-    text += "<h2>Raw v4 data</h2>" +
+    
+    text += "<h3>Raw v4 data</h3>" +
             "<pre>" + JSON.stringify(v4Extract, null, 2) + "</pre>";
   }
-
+  
   showHtmlInNewTab(text);
 } catch (e) {
   alert(e + "\n" + e.stack);
