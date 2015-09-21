@@ -755,6 +755,26 @@ try {
              "div { margin-bottom: 10px; }" +
              ".grey { background-color: #E3E3E3; }" +
              "</style>";
+  
+  // Background text.
+  const email = "<a href='mailto:gfritzsche@mozilla.com'>gfritzsche@mozilla.com</a>";
+  text += "<h2>Overview</h2>";
+
+  text += "<h3>Background</h3>";
+  text += "<div>For the <a href='https://wiki.mozilla.org/Unified_Telemetry'>Unified Telemetry</a> project, we are moving over " +
+          "our data collection from <i>Firefox Health Report</i> (FHR) to an improved <i>Telemetry</i> system.<br>" +
+          "While the feature work was finished, this migrates critical measurements and deviates conceptually from the previous approach.<br>" +
+          "As a result we still need to improve our confidence into the client data.<br>" +
+          "One of the approaches is looking at the local data of a limited set of people and understand any potential problems they are seeing." +
+          "</div>";
+
+  text += "<h3>Submitting data</h3>";
+  text += "<div>If there are problems with your data (shown by highlighting it in yellow), we would love to see it and investigate.<br>" +
+          "You could submit by:<ul>" +
+          "<li>(preferred) copy/paste everything into a google sheet, shared moco-only or similar and sharing it with " + email + "</li>" +
+          "<li>copy/paste the full URL or the contents into a mail to " + email + "</li>" +
+          "<li>send us the generated page</li>" +
+          "</ul></div>";
 
   // Show the v2 & v4 data and data comparisons.
   text += "<h2 name='v2v4matchup'>v2/v4 matchup</h2>";
