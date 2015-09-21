@@ -570,7 +570,7 @@ function renderV2V4Comparison(countsMap, v2, v4, cutoffTime, defaults) {
   let text = "";
 
   // Some basic information.
-  text += "<h3>general information</h3>";
+  text += "<h3>General Information</h3>";
   text += "<table>";
   text += `<tr><td>cutoff date for inspections</td>` +
           `<td>${new Date(cutoffTime)} ${(cutoffTime == 0) ? "<i>(all v2 & v4 data is recent)</i>" : ""}</td></tr>`;
@@ -586,7 +586,7 @@ function renderV2V4Comparison(countsMap, v2, v4, cutoffTime, defaults) {
   text += "</table>";
 
   // Build comparison table.
-  text += "<h3>search counts</h3>";
+  text += "<h3>Search Counts</h3>";
   text += "<div>Search counts should usually line up 1:1 on fresh profiles. " +
           "However, on older profiles we can't exactly match when FHR & v4 measurements happened, " +
           "so minor discrepancies are expected there (up to a day of measurements).</div>";
@@ -610,7 +610,7 @@ function renderV2V4Matchup(matchup) {
   const delta = (a,b) => Math.abs(a - b);
   const noInfinity = (number) => (number == Infinity) ? "-" : number;
 
-  let text = "<h3>session time matchups</h3>";
+  let text = "<h3>Session Time Matchups</h3>";
 
   text += "<div>The following table shows comparisons between times measured in FHR and Telemetry (all values in seconds):" +
           "<ul>" +
@@ -657,7 +657,7 @@ function renderV2V4Matchup(matchup) {
   }
   text += "</table>";
 
-  text += "<h3>individual session matchup</h3>";
+  text += "<h3>Individual Session Matchup</h3>";
 
   text += "<div>Depending on bugs in either system, we might have sessions missing in Telemetry that are recorded " +
           "in FHR or vice versa.</div>";
@@ -768,7 +768,7 @@ try {
           "One of the approaches is looking at the local data of a limited set of people and understand any potential problems they are seeing." +
           "</div>";
 
-  text += "<h3>Submitting data</h3>";
+  text += "<h3>Submitting Data</h3>";
   text += "<div>If there are problems with your data (shown by highlighting it in yellow), we would love to see it and investigate.<br>" +
           "You could submit by:<ul>" +
           "<li>(preferred) copy/paste everything into a google sheet, shared moco-only or similar and sharing it with " + email + "</li>" +
@@ -777,25 +777,25 @@ try {
           "</ul></div>";
 
   // Show the v2 & v4 data and data comparisons.
-  text += "<h2 name='v2v4matchup'>v2/v4 matchup</h2>";
+  text += "<h2>V2/V4 Matchup</h2>";
   text += "<div><i>Note:</i> v2 refers to the current FHR system, v4 to the improved Telemetry system.</div>"
   text += renderV2V4Comparison(counts, v2Accumulated, v4Accumulated, cutoffTime, defaults);
   text += renderV2V4Matchup(v2v4Matchup);
 
-  text += "<h2>additional details</h2>";
+  text += "<h2>Additional details</h2>";
   text += "<div>This contains more detailed data dumps that can help us understand what is going on in individual histories.</div>";
 
   // Enable this for some additional data dumping.
   if (true) {
-    text += "<h3>v4 extract</h3>";
+    text += "<h3>V4 Extract</h3>";
     v4Extract.reverse();
     text += renderV4Extract(v4Extract);
-    text += "<h3>v2 extract</h3>";
+    text += "<h3>V2 Extract</h3>";
     text += renderV2Extract(v2Extract);
 
     v2v4Matchup.sessions = mapToObject(v2v4Matchup.sessions);
 
-    text += "<h3>dumps</h3>" + "<pre>" +
+    text += "<h3>Dumps</h3>" + "<pre>" +
       "Accumulated v2 data:\n" +
       JSON.stringify(v2Accumulated, null, 2) +
       "\n\n" +
@@ -814,10 +814,10 @@ try {
       JSON.stringify(v2v4Matchup, null, 2) +
       "</pre>";
 
-    text += "<h3>Raw v2 data</h3>" +
+    text += "<h3>Raw V2 Data</h3>" +
             "<pre>" + JSON.stringify(rawV2Data, null, 2) + "</pre>";
 
-    text += "<h3>Raw v4 data</h3>" +
+    text += "<h3>Raw V4 Data</h3>" +
             "<pre>" + JSON.stringify(v4Extract, null, 2) + "</pre>";
   }
 
